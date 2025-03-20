@@ -1,0 +1,306 @@
+------->1.activity_main.xml<---------
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/username"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Username" />
+
+    <EditText
+        android:id="@+id/email"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Email"
+        android:inputType="textEmailAddress" />
+
+    <EditText
+        android:id="@+id/password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Password"
+        android:inputType="textPassword" />
+
+    <EditText
+        android:id="@+id/age"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Age"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/phone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Phone Number"
+        android:inputType="phone" />
+
+    <Button
+        android:id="@+id/registerButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Register" />
+
+    <Button
+        android:id="@+id/viewDataButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="View Data" />
+
+    <Button
+        android:id="@+id/clearButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Clear" />
+
+    <EditText
+        android:id="@+id/eil"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Email to Delete" />
+
+    <Button
+        android:id="@+id/delete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Delete User" />
+
+    <TextView
+        android:id="@+id/statusTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:textColor="@android:color/holo_red_dark" />
+
+    <TextView
+        android:id="@+id/dataTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+</LinearLayout>
+
+------->2. MainActivity.java<-------
+
+package com.example.trek;
+
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    private EditText usernameEditText, emailEditText, passwordEditText, ageEditText, phoneEditText;
+    private TextView statusTextView, dataTextView;
+    private com.example.trek.DatabaseHelper databaseHelper;
+
+    EditText eil;
+    Button delete;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // Initialize views
+        usernameEditText = findViewById(R.id.username);
+        emailEditText = findViewById(R.id.email);
+        passwordEditText = findViewById(R.id.password);
+        ageEditText = findViewById(R.id.age);
+        phoneEditText = findViewById(R.id.phone);
+        statusTextView = findViewById(R.id.statusTextView);
+        dataTextView = findViewById(R.id.dataTextView);
+        Button registerButton = findViewById(R.id.registerButton);
+        Button viewDataButton = findViewById(R.id.viewDataButton);
+        Button clearButton = findViewById(R.id.clearButton);
+        eil = findViewById(R.id.eil);
+        delete = findViewById(R.id.delete);
+
+        // Initialize Database Helper
+        databaseHelper = new com.example.trek.DatabaseHelper(this);
+
+        // Register button click listener
+        registerButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Get user inputs
+                String username = usernameEditText.getText().toString();
+                String email = emailEditText.getText().toString();
+                String password = passwordEditText.getText().toString();
+                String age = ageEditText.getText().toString();
+                String phone = phoneEditText.getText().toString();
+
+                // Validate inputs
+                if (TextUtils.isEmpty(username) || TextUtils.isEmpty(email) || TextUtils.isEmpty(password)
+                        || TextUtils.isEmpty(age) || TextUtils.isEmpty(phone)) {
+                    statusTextView.setText("All fields are required.");
+                    statusTextView.setVisibility(View.VISIBLE);
+                } else if (databaseHelper.checkUserExists(email)) {
+                    statusTextView.setText("Email already exists.");
+                    statusTextView.setVisibility(View.VISIBLE);
+                } else {
+                    // Insert user into database
+                    boolean isInserted = databaseHelper.insertUser(username, email, password, age, phone);
+                    if (isInserted) {
+                        Toast.makeText(MainActivity.this, "User registered successfully!", Toast.LENGTH_SHORT).show();
+                        Log.d("DATABASE", "User inserted: " + username + ", " + email);
+                    } else {
+                        statusTextView.setText("Error registering user.");
+                        statusTextView.setVisibility(View.VISIBLE);
+                    }
+                }
+                clearFields();
+            }
+        });
+
+        // View Data button click listener
+        viewDataButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                SQLiteDatabase db = databaseHelper.getReadableDatabase();
+                Cursor cursor = db.rawQuery("SELECT * FROM " + DatabaseHelper.TABLE_USERS, null);
+
+                StringBuilder stringBuilder = new StringBuilder();
+                while (cursor.moveToNext()) {
+                    String username = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_USERNAME));
+                    String email = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_EMAIL));
+                    String age = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_AGE));
+                    String phone = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_PHONE));
+                    stringBuilder.append("Username: ").append(username)
+                            .append(", Email: ").append(email)
+                            .append(", Age: ").append(age)
+                            .append(", Phone: ").append(phone).append("\n");
+                    Log.d("DATABASE", "User retrieved: " + username + ", " + email);
+                }
+
+                cursor.close();
+                db.close();
+
+                if (stringBuilder.length() > 0) {
+                    dataTextView.setText(stringBuilder.toString());
+                    dataTextView.setVisibility(View.VISIBLE);
+                } else {
+                    dataTextView.setText("No users found.");
+                    dataTextView.setVisibility(View.VISIBLE);
+                }
+            }
+        });
+
+        // Clear button click listener
+        clearButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                clearFields();
+            }
+        });
+
+        delete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String em = eil.getText().toString();
+                if (em.isEmpty()) {
+                    Toast.makeText(MainActivity.this, "Enter the fields", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                boolean res = databaseHelper.deleteUser(em);
+                if (!res) {
+                    Toast.makeText(MainActivity.this, "Failed Deleting user", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this, "Successfully Deleted user " + em, Toast.LENGTH_SHORT).show();
+                }
+                clearFields();
+            }
+        });
+    }
+
+    // Clear input fields and status message
+    private void clearFields() {
+        usernameEditText.setText("");
+        emailEditText.setText("");
+        passwordEditText.setText("");
+        ageEditText.setText("");
+        phoneEditText.setText("");
+        eil.setText("");
+        statusTextView.setText("");
+        statusTextView.setVisibility(View.GONE);
+        dataTextView.setText("");
+        dataTextView.setVisibility(View.GONE);
+    }
+}
+
+
+--------->3. DatabaseHelper.java<-----------
+
+package com.example.trek;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+    private static final String DATABASE_NAME = "userDatabase";
+    private static final int DATABASE_VERSION = 2;
+
+    public static final String TABLE_USERS = "users";
+    public static final String COLUMN_ID = "id";
+    public static final String COLUMN_USERNAME = "username";
+    public static final String COLUMN_EMAIL = "email";
+    public static final String COLUMN_PASSWORD = "password";
+    public static final String COLUMN_AGE = "age";
+    public static final String COLUMN_PHONE = "phone";
+
+    private static final String TABLE_CREATE =
+            "CREATE TABLE " + TABLE_USERS + " (" +
+                    COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    COLUMN_USERNAME + " TEXT NOT NULL, " +
+                    COLUMN_EMAIL + " TEXT NOT NULL, " +
+                    COLUMN_PASSWORD + " TEXT NOT NULL, " +
+                    COLUMN_AGE + " INTEGER NOT NULL, " +
+                    COLUMN_PHONE + " TEXT NOT NULL);";
+
+    public DatabaseHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(TABLE_CREATE);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
+        onCreate(db);
+    }
+
+    public boolean insertUser(String username, String email, String password, String age, String phone) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(COLUMN_USERNAME, username);
+        contentValues.put(COLUMN_EMAIL, email);
+        contentValues.put(COLUMN_PASSWORD, password);
+        contentValues.put(COLUMN_AGE, age);
+        contentValues.put(COLUMN_PHONE, phone);
+
+        long result = db.insert(TABLE_USERS, null, contentValues);
+        db.close();
+
+        return result != -1;
+    }
+}
